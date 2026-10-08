@@ -15,8 +15,10 @@ import django
 django.setup()
 
 from config.database import get_db
+from routers.v1 import router as v1_router
 
 app = FastAPI(title='SkillSwap API')
+app.include_router(v1_router, prefix='/api/v1')
 
 
 @app.get('/health', tags=['health'])

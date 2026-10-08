@@ -1,7 +1,4 @@
-# Virtual environment
-venv/
+.env
 .venv/
-
-# Python
 __pycache__/
 *.py[cod]

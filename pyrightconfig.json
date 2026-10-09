@@ -1,0 +1,6 @@
+{
+  "extraPaths": [
+    "backend/django_backend",
+    "backend/fastapi_backend"
+  ]
+}

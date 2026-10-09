@@ -1,9 +1,20 @@
+from __future__ import annotations
+
 from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
 from django.db import models
 
 
 class UserManager(DjangoUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    use_in_migrations = True
+
+    def create_user(
+        self,
+        username: str | None = None,
+        email: str | None = None,
+        password: str | None = None,
+        **extra_fields,
+    ) -> User:
+        email = email or username
         if not email:
             raise ValueError('An email address is required.')
         user = self.model(email=self.normalize_email(email), **extra_fields)
@@ -11,13 +22,22 @@ class UserManager(DjangoUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(
+        self,
+        username: str | None = None,
+        email: str | None = None,
+        password: str | None = None,
+        **extra_fields,
+    ) -> User:
+        email = email or username
+        if not email:
+            raise ValueError('An email address is required.')
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', User.Role.ADMIN)
         if not extra_fields['is_staff'] or not extra_fields['is_superuser']:
             raise ValueError('A superuser must have is_staff and is_superuser set to True.')
-        return self.create_user(email, password, **extra_fields)
+        return self.create_user(email=email, password=password, **extra_fields)
 
 
 class User(AbstractUser):

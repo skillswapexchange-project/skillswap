@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 import os
 import secrets
+import sys
 from pathlib import Path
 
 import dj_database_url
@@ -85,21 +86,52 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+DB_HOST = os.environ.get('DB_HOST')
 DATABASE_URL = os.environ.get('DATABASE_URL')
-DATABASES = {
-    'default': (
-        dj_database_url.parse(
+DB_CONN_MAX_AGE = int(os.environ.get('DB_CONN_MAX_AGE', '60'))
+
+if DB_HOST:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'postgres'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': DB_HOST,
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'OPTIONS': {
+                'sslmode': os.environ.get('DB_SSLMODE', 'require'),
+            },
+            'CONN_MAX_AGE': DB_CONN_MAX_AGE,
+            'CONN_HEALTH_CHECKS': True,
+        }
+    }
+elif DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=60,
+            conn_max_age=DB_CONN_MAX_AGE,
             conn_health_checks=True,
+            ssl_require=os.environ.get('DB_SSLMODE', 'require') == 'require',
         )
-        if DATABASE_URL
-        else {
+    }
+else:
+    DATABASES = {
+        'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
-    )
-}
+    }
+
+# When running unit tests with TEST_DB_ENGINE=sqlite3, use an in-memory SQLite database
+if 'test' in sys.argv and os.environ.get('TEST_DB_ENGINE', '').lower() == 'sqlite3':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+
 
 AUTH_USER_MODEL = 'users.User'
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', '30'))

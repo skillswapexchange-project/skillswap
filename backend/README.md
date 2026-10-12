@@ -8,7 +8,13 @@ The backend keeps Django and FastAPI as separate applications:
 
 Domain areas are split into `skills`, `exchanges`, and `reviews`. The existing `users` app remains in place. These domain app and API modules are scaffolding only; they do not add endpoints or database models.
 
+Database operations connect to hosted Supabase PostgreSQL using `psycopg3` and the session pooler on port 5432. Verify your connection with:
+```powershell
+python manage.py verify_db
+```
+
 Run Django commands from `django_backend/` with `python manage.py <command>`. Run the API from `fastapi_backend/` with `uvicorn main:app`.
+
 
 Authentication is available at `/api/v1/auth/register`, `/api/v1/auth/login`, and `/api/v1/auth/me`. Protected routes should use `get_current_user` or `require_roles` from `routers.v1.auth`; `/api/v1/auth/admin-check` demonstrates the admin role guard. Access tokens use the configured Django `SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES`.
 

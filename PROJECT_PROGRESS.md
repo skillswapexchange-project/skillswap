@@ -1,6 +1,6 @@
 # SkillSwap Project Progress
 
-**Status checked:** 2026-10-12
+**Status checked:** 2026-10-21
 
 ## Project goal
 
@@ -29,6 +29,14 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 - Reusable current-user and role-check dependencies are available for protected API routes.
 - The FastAPI `/health` endpoint checks the database connection.
 
+### Skills
+
+- A reusable skill catalog is available with a unique case-insensitive name, generated slug, category, and description.
+- Users can create, update, and delete listings to offer teaching or seek learning; duplicate listings for the same user, skill, and direction are prevented.
+- Public catalog and active-listing endpoints support text/category/skill/direction filters and pagination. Listing mutations require authentication and are limited to the listing owner.
+- Skills and listings are manageable through Django admin.
+- On 2026-10-21, Django checks and migration checks passed, and **18 user, authentication, and skills tests** passed together.
+
 ### Merged work and verification
 
 - Backend foundation PRs [#3](https://github.com/skillswapexchange-project/skillswap/pull/3) and [#4](https://github.com/skillswapexchange-project/skillswap/pull/4) are merged.
@@ -37,10 +45,9 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 
 ## In progress or incomplete
 
-- **Skills:** the Django model, API schemas, services, repositories, and router files are placeholders. There is no implemented skill catalog, search, or teach/learn offering flow.
 - **Exchanges:** placeholder files exist, but creating requests, matching participants, managing status, and scheduling sessions are not implemented.
 - **Reviews:** placeholder files exist; review submission and retrieval are not implemented.
-- These domain apps and routers still need to be registered or included as their features are implemented.
+- Exchange and review apps and routers still need to be implemented and registered.
 
 ## Not found in the current repository
 
@@ -51,8 +58,8 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 
 ## Recommended next work
 
-1. Confirm the product requirements and API contracts for skills, exchanges, matching, and reviews.
-2. Implement and register the Django models and migrations for those domain areas.
+1. Confirm the product requirements and API contracts for exchanges, matching, and reviews.
+2. Implement and register the Django models and migrations for exchanges and reviews.
 3. Implement corresponding FastAPI repositories, services, schemas, routes, and permission checks.
 4. Add profile-management endpoints and complete any agreed account recovery or email-verification flows.
 5. Build or connect the frontend and test the complete user journey against the API.

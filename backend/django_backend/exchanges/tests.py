@@ -1,67 +1,44 @@
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from exchanges.models import ExchangeRequest
-from skills.models import Skill, SkillListing
+from exchanges.models import Exchange
 from users.models import User
 
 
-class ExchangeRequestModelTests(TestCase):
+class ExchangeModelTests(TestCase):
     def setUp(self):
-        self.learner = User.objects.create_user(email='learner@example.com', password='pw')
-        self.owner = User.objects.create_user(email='owner@example.com', password='pw')
-        skill = Skill.objects.create(name='Python')
-        self.listing = SkillListing.objects.create(
-            owner=self.owner,
-            skill=skill,
-            direction=SkillListing.Direction.OFFER,
+        self.alice = User.objects.create_user(
+            email='alice@example.com',
+            password='Strong-password-42!',
+            first_name='Alice',
+            last_name='Smith',
+        )
+        self.bob = User.objects.create_user(
+            email='bob@example.com',
+            password='Strong-password-42!',
+            first_name='Bob',
+            last_name='Jones',
+        )
+        self.charlie = User.objects.create_user(
+            email='charlie@example.com',
+            password='Strong-password-42!',
+            first_name='Charlie',
+            last_name='Brown',
         )
 
-    def test_status_transition_lifecycle(self):
-        exchange = ExchangeRequest.objects.create(
-            learner=self.learner,
-            owner=self.owner,
-            listing=self.listing,
+    def test_create_exchange_and_helpers(self):
+        exchange = Exchange.objects.create(
+            initiator=self.alice,
+            receiver=self.bob,
+            status=Exchange.Status.PENDING,
+            notes='Let us exchange skills',
         )
-        exchange.transition_to(ExchangeRequest.Status.ACCEPTED)
-        exchange.refresh_from_db()
-        self.assertEqual(exchange.status, ExchangeRequest.Status.ACCEPTED)
-
-        exchange.transition_to(ExchangeRequest.Status.COMPLETED)
-        exchange.refresh_from_db()
-        self.assertEqual(exchange.status, ExchangeRequest.Status.COMPLETED)
-        with self.assertRaises(ValueError):
-            exchange.transition_to(ExchangeRequest.Status.CANCELLED)
-        exchange.status = ExchangeRequest.Status.PENDING
-        with self.assertRaises(ValueError):
-            exchange.save(update_fields=['status'])
-
-    def test_model_validation_rejects_self_request_and_wrong_listing_owner(self):
-        self_request = ExchangeRequest(
-            learner=self.owner,
-            owner=self.owner,
-            listing=self.listing,
-        )
-        with self.assertRaises(ValidationError):
-            self_request.full_clean()
-
-        another_owner = User.objects.create_user(email='another@example.com', password='pw')
-        wrong_owner = ExchangeRequest(
-            learner=self.learner,
-            owner=another_owner,
-            listing=self.listing,
-        )
-        with self.assertRaises(ValidationError):
-            wrong_owner.full_clean()
-        with self.assertRaises(ValidationError):
-            wrong_owner.save()
-
-    def test_new_exchange_must_start_pending(self):
-        exchange = ExchangeRequest(
-            learner=self.learner,
-            owner=self.owner,
-            listing=self.listing,
-            status=ExchangeRequest.Status.ACCEPTED,
-        )
-        with self.assertRaises(ValidationError):
-            exchange.save()
+        self.assertIsNotNone(exchange.id)
+        self.assertEqual(exchange.status, Exchange.Status.PENDING)
+        self.assertEqual(exchange.requester, self.alice)
+        self.assertEqual(exchange.recipient, self.bob)
+        self.assertTrue(exchange.is_participant(self.alice))
+        self.assertTrue(exchange.is_participant(self.bob))
+        self.assertFalse(exchange.is_participant(self.charlie))
+        self.assertEqual(exchange.get_other_participant(self.alice), self.bob)
+        self.assertEqual(exchange.get_other_participant(self.bob), self.alice)
+        self.assertIsNone(exchange.get_other_participant(self.charlie))

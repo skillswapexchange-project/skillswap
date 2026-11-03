@@ -1,6 +1,6 @@
 # SkillSwap Project Progress
 
-**Status checked:** 2026-10-21
+**Status checked:** 2026-10-28
 
 ## Project goal
 
@@ -14,7 +14,7 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 - FastAPI serves the API; both frameworks share Django's ORM and configured database.
 - SQLite is the default database. A `DATABASE_URL` can configure a supported database such as PostgreSQL.
 - Environment-based configuration is present for the Django secret, debug mode, allowed hosts, database URL, and access-token expiry. `.env.example` documents the settings.
-- The backend has separate Django and FastAPI areas, with initial app/module scaffolding for users, skills, exchanges, and reviews.
+- The backend has separate Django and FastAPI areas, with app/module scaffolding for users, skills, exchanges, and reviews.
 
 ### User and authentication foundation
 
@@ -35,19 +35,42 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 - Users can create, update, and delete listings to offer teaching or seek learning; duplicate listings for the same user, skill, and direction are prevented.
 - Public catalog and active-listing endpoints support text/category/skill/direction filters and pagination. Listing mutations require authentication and are limited to the listing owner.
 - Skills and listings are manageable through Django admin.
-- On 2026-10-21, Django checks and migration checks passed, and **18 user, authentication, and skills tests** passed together.
+
+### Exchanges foundation
+
+- A Django `Exchange` model defines exchange agreements/sessions between an initiator and receiver, with lifecycle status (`PENDING`, `ACCEPTED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `REJECTED`), optional skill reference, notes, and timestamps.
+- Participant helper utilities (`is_participant`, `get_other_participant`) and admin registration are implemented.
+- Initial migration `0001_initial` is created and verified.
+
+### Reviews feature (End-to-End)
+
+- A Django `Review` model links to an exchange with reviewer, reviewee, 1–5 rating, optional written feedback, and timestamps.
+- Model and database constraints ensure:
+  - Rating is bounded between 1 and 5 (`MinValueValidator`, `MaxValueValidator`, and database check constraint).
+  - Only a participant in a completed exchange (`status == 'COMPLETED'`) can review the other participant.
+  - Reviewers cannot review themselves.
+  - Duplicate reviews for the same exchange by the same reviewer are prevented (`UniqueConstraint` on `exchange` and `reviewer`).
+- FastAPI endpoints with JWT authentication:
+  - `POST /api/v1/reviews`: Submit a review with validation (checks participant permissions, completed status, duplicate prevention, and self-review protection).
+  - `GET /api/v1/reviews`: Retrieve reviews with optional filters (`user_id`, `reviewee_id`, `reviewer_id`, `exchange_id`, `rating`, `min_rating`) and pagination (`limit`, `offset`).
+  - `GET /api/v1/reviews/users/{user_id}`: Retrieve reviews received by a specific user.
+  - `GET /api/v1/reviews/{review_id}`: Retrieve a single review by ID.
+  - Public user summaries (`ReviewUserSummary`) return only `id`, `first_name`, `last_name`, and `profile_image` with no exposure of private account data (`email`, `password_hash`, `role`).
+- Schemas, repositories, services, and Django admin are registered following project conventions.
+- 41 total unit and integration tests pass across users, skills, exchanges, and reviews.
 
 ### Merged work and verification
 
 - Backend foundation PRs [#3](https://github.com/skillswapexchange-project/skillswap/pull/3) and [#4](https://github.com/skillswapexchange-project/skillswap/pull/4) are merged.
 - Authentication and authorization PR [#5](https://github.com/skillswapexchange-project/skillswap/pull/5) is merged.
-- On 2026-10-12, the existing user and authentication tests passed: **12 tests**. Django system checks passed, and no model migration changes were pending.
+- Supabase database integration PR [#7](https://github.com/skillswapexchange-project/skillswap/pull/7) is merged.
+- Skills catalog and listings PR [#8](https://github.com/skillswapexchange-project/skillswap/pull/8) is merged.
+- On 2026-10-28, Django checks and migration checks passed, and **41 user, authentication, skills, exchange, and review tests** passed together.
 
 ## In progress or incomplete
 
-- **Exchanges:** placeholder files exist, but creating requests, matching participants, managing status, and scheduling sessions are not implemented.
-- **Reviews:** placeholder files exist; review submission and retrieval are not implemented.
-- Exchange and review apps and routers still need to be implemented and registered.
+- **Exchanges API:** exchange creation requests, matching participants, acceptance workflows, and scheduling sessions are still to be built into the API layer.
+- **Messaging & Notifications:** real-time chat, connection requests, and notifications.
 
 ## Not found in the current repository
 
@@ -58,13 +81,7 @@ SkillSwap is intended to let people exchange skills: users can offer skills they
 
 ## Recommended next work
 
-1. Confirm the product requirements and API contracts for exchanges, matching, and reviews.
-2. Implement and register the Django models and migrations for exchanges and reviews.
-3. Implement corresponding FastAPI repositories, services, schemas, routes, and permission checks.
-4. Add profile-management endpoints and complete any agreed account recovery or email-verification flows.
-5. Build or connect the frontend and test the complete user journey against the API.
-6. Add integration/deployment configuration, production email and secret management, and CI checks.
-
-## Repository note
-
-The local checkout used for this status report is on `feature/authentication-authorization`. Its latest local commit, `a99d7a1` (`sqlite3 in backend`), adds `backend/django_backend/db.sqlite3`. This database file is a local repository artifact, not part of the merged authentication PR. Before sharing or relying on the branch, decide whether that database should remain tracked; normally, a local development SQLite database should be excluded from version control.
+1. Build FastAPI endpoints and workflows for exchange requests, accept/reject transitions, and session scheduling.
+2. Add profile-management endpoints and complete any agreed account recovery or email-verification flows.
+3. Build or connect the frontend and test the complete user journey against the API.
+4. Add integration/deployment configuration, production email and secret management, and CI checks.

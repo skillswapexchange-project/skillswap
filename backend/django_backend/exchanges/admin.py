@@ -1,11 +1,16 @@
 from django.contrib import admin
 
-from .models import ExchangeRequest
+from .models import Exchange
 
 
-@admin.register(ExchangeRequest)
-class ExchangeRequestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'listing', 'learner', 'owner', 'status', 'scheduled_at', 'created_at')
+@admin.register(Exchange)
+class ExchangeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'initiator', 'receiver', 'skill', 'status', 'created_at')
     list_filter = ('status', 'created_at')
-    search_fields = ('learner__email', 'owner__email', 'listing__skill__name')
+    search_fields = (
+        'initiator__email',
+        'receiver__email',
+        'notes',
+    )
     readonly_fields = ('created_at', 'updated_at')
+

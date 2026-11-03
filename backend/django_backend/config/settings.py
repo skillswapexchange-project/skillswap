@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'users',
     'skills',
     'exchanges',
+    'reviews',
 ]
 
 MIDDLEWARE = [

@@ -1,105 +1,76 @@
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
-
-from skills.models import SkillListing
 
 
-class ExchangeRequest(models.Model):
+class Exchange(models.Model):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         ACCEPTED = 'ACCEPTED', 'Accepted'
-        DECLINED = 'DECLINED', 'Declined'
-        CANCELLED = 'CANCELLED', 'Cancelled'
+        IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
         COMPLETED = 'COMPLETED', 'Completed'
+        CANCELLED = 'CANCELLED', 'Cancelled'
+        REJECTED = 'REJECTED', 'Rejected'
 
-    _VALID_TRANSITIONS = {
-        Status.PENDING: {Status.ACCEPTED, Status.DECLINED, Status.CANCELLED},
-        Status.ACCEPTED: {Status.COMPLETED, Status.CANCELLED},
-        Status.DECLINED: set(),
-        Status.CANCELLED: set(),
-        Status.COMPLETED: set(),
-    }
-
-    learner = models.ForeignKey(
+    initiator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='exchange_requests_as_learner',
+        related_name='initiated_exchanges',
     )
-    owner = models.ForeignKey(
+    receiver = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='exchange_requests_as_owner',
+        related_name='received_exchanges',
     )
-    listing = models.ForeignKey(
-        SkillListing,
-        on_delete=models.PROTECT,
-        related_name='exchange_requests',
+    skill = models.ForeignKey(
+        'skills.Skill',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exchanges',
     )
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=Status.choices,
         default=Status.PENDING,
     )
-    scheduled_at = models.DateTimeField(blank=True, null=True)
+    notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at', '-id']
-        constraints = [
-            models.CheckConstraint(
-                condition=~Q(learner=F('owner')),
-                name='exchanges_distinct_participants',
-            ),
-        ]
-        indexes = [
-            models.Index(
-                fields=['learner', '-created_at'],
-                name='exchanges_learner_created_idx',
-            ),
-            models.Index(
-                fields=['owner', '-created_at'],
-                name='exchanges_owner_created_idx',
-            ),
-        ]
-
-    def clean(self):
-        if self.learner_id and self.owner_id and self.learner_id == self.owner_id:
-            raise ValidationError('The learner cannot request an exchange with themselves.')
-        if self.listing_id and self.owner_id and self.listing.owner_id != self.owner_id:
-            raise ValidationError('The exchange owner must own the referenced listing.')
-
-    def save(self, *args, **kwargs):
-        if self.status not in self.Status.values:
-            raise ValidationError({'status': 'Select a valid exchange status.'})
-        if self._state.adding and self.status != self.Status.PENDING:
-            raise ValidationError({'status': 'New exchange requests must be pending.'})
-
-        if self.pk:
-            previous_status = (
-                type(self).objects
-                .filter(pk=self.pk)
-                .values_list('status', flat=True)
-                .first()
-            )
-            if previous_status is not None and self.status != previous_status:
-                if self.status not in self._VALID_TRANSITIONS.get(previous_status, set()):
-                    raise ValueError(
-                        f'Cannot transition an exchange from {previous_status} to {self.status}.'
-                    )
-        self.clean()
-        super().save(*args, **kwargs)
-
-    def can_transition_to(self, new_status: str) -> bool:
-        return new_status in self._VALID_TRANSITIONS.get(self.status, set())
-
-    def transition_to(self, new_status: str) -> None:
-        if not self.can_transition_to(new_status):
-            raise ValueError(f'Cannot transition an exchange from {self.status} to {new_status}.')
-        self.status = new_status
-        self.save(update_fields=['status', 'updated_at'])
 
     def __str__(self) -> str:
-        return f'{self.learner} to {self.owner}: {self.listing} ({self.status})'
+        return f'Exchange #{self.id}: {self.initiator} <-> {self.receiver} ({self.status})'
+
+    @property
+    def requester(self):
+        return self.initiator
+
+    @property
+    def recipient(self):
+        return self.receiver
+
+    @property
+    def user_a(self):
+        return self.initiator
+
+    @property
+    def user_b(self):
+        return self.receiver
+
+    @property
+    def participants(self):
+        return [self.initiator, self.receiver]
+
+    def is_participant(self, user) -> bool:
+        user_id = user.id if hasattr(user, 'id') else user
+        return user_id in (self.initiator_id, self.receiver_id)
+
+    def get_other_participant(self, user):
+        user_id = user.id if hasattr(user, 'id') else user
+        if user_id == self.initiator_id:
+            return self.receiver
+        elif user_id == self.receiver_id:
+            return self.initiator
+        return None

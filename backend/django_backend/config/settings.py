@@ -50,10 +50,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'users',
-    'skills',
-    'exchanges',
-    'reviews',
+    'users.apps.UsersConfig',
+    'skills.apps.SkillsConfig',
+    'exchanges.apps.ExchangesConfig',
+    'reviews.apps.ReviewsConfig',
 ]
 
 MIDDLEWARE = [

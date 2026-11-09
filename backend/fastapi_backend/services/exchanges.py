@@ -3,7 +3,7 @@ from datetime import datetime
 from django.db import transaction
 from fastapi import HTTPException, status
 
-from exchanges.models import ExchangeRequest
+from exchanges.models import Exchange
 from repositories.exchanges import (
     create_exchange_request,
     get_exchange_request_for_update,
@@ -18,7 +18,7 @@ def request_exchange(
     learner: User,
     listing_id: int,
     scheduled_at: datetime | None,
-) -> ExchangeRequest:
+) -> Exchange:
     listing = get_listing_for_exchange(listing_id=listing_id)
     if listing is None:
         raise HTTPException(
@@ -53,7 +53,7 @@ def get_exchange_requests(
     user: User,
     limit: int,
     offset: int,
-) -> tuple[list[ExchangeRequest], int]:
+) -> tuple[list[Exchange], int]:
     return list_exchange_requests_for_user(
         user_id=user.pk,
         limit=limit,
@@ -66,7 +66,7 @@ def transition_exchange_request(
     exchange_id: int,
     actor: User,
     new_status: str,
-) -> ExchangeRequest:
+) -> Exchange:
     with transaction.atomic():
         exchange = get_exchange_request_for_update(exchange_id=exchange_id)
         if exchange is None:
@@ -82,16 +82,16 @@ def transition_exchange_request(
 
         actor_is_learner = actor.pk == exchange.learner_id
         actor_is_owner = actor.pk == exchange.owner_id
-        if new_status in {ExchangeRequest.Status.ACCEPTED, ExchangeRequest.Status.DECLINED}:
-            allowed_actor = actor_is_owner and exchange.status == ExchangeRequest.Status.PENDING
-        elif new_status == ExchangeRequest.Status.COMPLETED:
-            allowed_actor = actor_is_owner and exchange.status == ExchangeRequest.Status.ACCEPTED
-        elif new_status == ExchangeRequest.Status.CANCELLED:
+        if new_status in {Exchange.Status.ACCEPTED, Exchange.Status.DECLINED}:
+            allowed_actor = actor_is_owner and exchange.status == Exchange.Status.PENDING
+        elif new_status == Exchange.Status.COMPLETED:
+            allowed_actor = actor_is_owner and exchange.status == Exchange.Status.ACCEPTED
+        elif new_status == Exchange.Status.CANCELLED:
             allowed_actor = (
-                actor_is_learner and exchange.status == ExchangeRequest.Status.PENDING
+                actor_is_learner and exchange.status == Exchange.Status.PENDING
             ) or (
                 (actor_is_learner or actor_is_owner)
-                and exchange.status == ExchangeRequest.Status.ACCEPTED
+                and exchange.status == Exchange.Status.ACCEPTED
             )
         else:
             allowed_actor = False

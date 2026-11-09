@@ -1,33 +1,49 @@
-# Backend layout
+# Backend
 
-The backend keeps Django and FastAPI as separate applications:
+## Architecture
 
-- `django_backend/` owns Django settings, the ORM, admin, and database migrations.
-- `fastapi_backend/` owns HTTP API routing and its schemas, services, and repositories.
-- Both applications use the Django ORM and the shared database configuration; do not add a second ORM or database connection setup.
+- `django_backend/` owns Django settings, the registered `users`, `skills`, `exchanges`, and `reviews` apps, ORM models, admin, and migrations.
+- `fastapi_backend/` owns the HTTP API. `routers/v1/__init__.py` registers each v1 router once; all API endpoints share Django's ORM and database configuration.
+- Exchange requests use the existing `Exchange` model so completed exchanges can be reviewed without a second exchange record type.
 
-Domain areas are split into `skills`, `exchanges`, and `reviews`. The existing `users` app remains in place. Exchange requests reference the existing `SkillListing` model; they do not introduce a parallel listing model.
+## Local setup
 
-Database operations connect to hosted Supabase PostgreSQL using `psycopg3` and the session pooler on port 5432. Verify your connection with:
+Install the root `requirements.txt`. For SQLite development, leave `DB_HOST` and `DATABASE_URL` unset; the sample hosted database values in `.env.example` must be replaced with real settings or left unset.
+
+Apply migrations and run checks from the repository root:
+
 ```powershell
-python manage.py verify_db
+python backend\django_backend\manage.py migrate
+python backend\django_backend\manage.py check
+python backend\django_backend\manage.py makemigrations --check --dry-run
 ```
 
-Run Django commands from `django_backend/` with `python manage.py <command>`. Run the API from `fastapi_backend/` with `uvicorn main:app`.
+Run the API with `python run_api.py` or `python -m uvicorn backend.fastapi_backend.main:app --reload --port 8080`. Interactive API documentation is available at `/docs`.
 
+## API
 
-Authentication is available at `/api/v1/auth/register`, `/api/v1/auth/login`, and `/api/v1/auth/me`. Protected routes should use `get_current_user` or `require_roles` from `routers.v1.auth`; `/api/v1/auth/admin-check` demonstrates the admin role guard. Access tokens use the configured Django `SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES`.
+All routes are under `/api/v1`:
 
-The Exchanges Django app and API router are registered. Reviews remain scaffolding for a later feature.
+- Authentication: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
+- Current user's profile: `GET /users/me`, `PATCH /users/me` (authentication required). Updates are limited to `first_name`, `last_name`, `profile_image`, `bio`, `location`, and `timezone`; email, role, active/staff status, and credentials cannot be changed here.
+- Skills: public catalog and listing search at `/skills` and `/skills/listings`; listing mutations require authentication.
+- Exchanges: authenticated request, participant listing, and lifecycle transitions at `/exchanges`.
+- Reviews: authenticated submit and read endpoints at `/reviews`.
 
-## Exchange requests
+The exchange lifecycle is `PENDING` to `ACCEPTED`, `DECLINED`, or `CANCELLED`; an accepted exchange can become `COMPLETED` or `CANCELLED`. The listing owner accepts, declines, or completes a request. Reviews are allowed for participants in completed exchanges.
 
-Authenticated exchange endpoints are available at `/api/v1/exchanges`:
+## Backend tests
 
-- `POST /api/v1/exchanges` creates a pending request for an active `OFFER` listing. The authenticated user is the learner; the listing owner is the teacher.
-- `GET /api/v1/exchanges` lists requests where the authenticated user is learner or owner.
-- `PATCH /api/v1/exchanges/{id}/status` changes status subject to the lifecycle and participant rules below.
+Use the local in-memory SQLite test database and include the FastAPI modules explicitly:
 
-The status lifecycle is `PENDING` → `ACCEPTED`, `DECLINED`, or `CANCELLED`; `ACCEPTED` → `COMPLETED` or `CANCELLED`. `DECLINED`, `CANCELLED`, and `COMPLETED` are terminal. Only the listing owner may accept or decline a pending request or mark an accepted request completed. The learner may cancel a pending request; either participant may cancel an accepted request. Nonparticipants cannot view or transition a request. Learners cannot request their own listings, and only active teaching offers can be requested.
+```powershell
+$env:PYTHONPATH = "$PWD\backend\fastapi_backend;$PWD"
+$env:TEST_DB_ENGINE = "sqlite3"
+python backend\django_backend\manage.py test users skills exchanges reviews backend.fastapi_backend.tests
+```
 
-Reviews can use `COMPLETED` as the qualifying exchange state and should remain restricted to its learner and owner.
+The same test, Django system check, and migration check run in `.github/workflows/backend.yml`.
+
+## Production setup
+
+No hosting provider or deployment is configured. Before production, provide a persistent private `SECRET_KEY`, set `DEBUG=false` and the correct `ALLOWED_HOSTS`, configure PostgreSQL with `DB_HOST` (and appropriate `DB_*` values) or `DATABASE_URL`, require database TLS, and apply migrations. Terminate HTTPS and manage secrets and backups with the selected infrastructure. Email verification, password recovery, messaging, and notifications are not implemented.

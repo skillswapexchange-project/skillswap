@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.db.models import Q, QuerySet
 
-from exchanges.models import ExchangeRequest
+from exchanges.models import Exchange
 from skills.models import SkillListing
 
 
@@ -21,10 +21,10 @@ def create_exchange_request(
     owner_id: int,
     listing: SkillListing,
     scheduled_at: datetime | None,
-) -> ExchangeRequest:
-    return ExchangeRequest.objects.create(
-        learner_id=learner_id,
-        owner_id=owner_id,
+) -> Exchange:
+    return Exchange.objects.create(
+        initiator_id=learner_id,
+        receiver_id=owner_id,
         listing=listing,
         scheduled_at=scheduled_at,
     )
@@ -35,21 +35,21 @@ def list_exchange_requests_for_user(
     user_id: int,
     limit: int,
     offset: int,
-) -> tuple[list[ExchangeRequest], int]:
-    requests: QuerySet[ExchangeRequest] = (
-        ExchangeRequest.objects
-        .filter(Q(learner_id=user_id) | Q(owner_id=user_id))
-        .select_related('learner', 'owner', 'listing__owner', 'listing__skill')
+) -> tuple[list[Exchange], int]:
+    requests: QuerySet[Exchange] = (
+        Exchange.objects
+        .filter(Q(initiator_id=user_id) | Q(receiver_id=user_id))
+        .select_related('initiator', 'receiver', 'listing__owner', 'listing__skill')
     )
     total = requests.count()
     return list(requests[offset:offset + limit]), total
 
 
-def get_exchange_request_for_update(*, exchange_id: int) -> ExchangeRequest | None:
+def get_exchange_request_for_update(*, exchange_id: int) -> Exchange | None:
     return (
-        ExchangeRequest.objects
+        Exchange.objects
         .select_for_update()
-        .select_related('learner', 'owner', 'listing__owner', 'listing__skill')
+        .select_related('initiator', 'receiver', 'listing__owner', 'listing__skill')
         .filter(pk=exchange_id)
         .first()
     )

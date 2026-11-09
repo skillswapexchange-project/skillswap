@@ -40,7 +40,7 @@ class ExchangeResponse(BaseModel):
     id: int
     learner_id: int
     owner_id: int
-    listing: SkillListingResponse
+    listing: SkillListingResponse | None
     status: ExchangeStatus
     scheduled_at: datetime | None
     created_at: datetime

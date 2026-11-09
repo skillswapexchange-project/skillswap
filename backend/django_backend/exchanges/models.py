@@ -6,6 +6,7 @@ class Exchange(models.Model):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         ACCEPTED = 'ACCEPTED', 'Accepted'
+        DECLINED = 'DECLINED', 'Declined'
         IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
         COMPLETED = 'COMPLETED', 'Completed'
         CANCELLED = 'CANCELLED', 'Cancelled'
@@ -28,6 +29,14 @@ class Exchange(models.Model):
         blank=True,
         related_name='exchanges',
     )
+    listing = models.ForeignKey(
+        'skills.SkillListing',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exchanges',
+    )
+    scheduled_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -62,6 +71,39 @@ class Exchange(models.Model):
     @property
     def participants(self):
         return [self.initiator, self.receiver]
+
+    @property
+    def learner(self):
+        return self.initiator
+
+    @property
+    def learner_id(self):
+        return self.initiator_id
+
+    @property
+    def owner(self):
+        return self.receiver
+
+    @property
+    def owner_id(self):
+        return self.receiver_id
+
+    def can_transition_to(self, new_status: str) -> bool:
+        transitions = {
+            self.Status.PENDING: {
+                self.Status.ACCEPTED,
+                self.Status.DECLINED,
+                self.Status.CANCELLED,
+            },
+            self.Status.ACCEPTED: {self.Status.COMPLETED, self.Status.CANCELLED},
+        }
+        return new_status in transitions.get(self.status, set())
+
+    def transition_to(self, new_status: str) -> None:
+        if not self.can_transition_to(new_status):
+            raise ValueError(f'Cannot transition from {self.status} to {new_status}.')
+        self.status = new_status
+        self.save(update_fields=['status', 'updated_at'])
 
     def is_participant(self, user) -> bool:
         user_id = user.id if hasattr(user, 'id') else user

@@ -4,7 +4,7 @@ from django.test import TransactionTestCase
 from fastapi.testclient import TestClient
 
 from main import app
-from exchanges.models import ExchangeRequest
+from exchanges.models import Exchange
 from services.auth import create_access_token
 from skills.models import Skill, SkillListing
 from users.models import User
@@ -86,15 +86,15 @@ class ExchangesApiTests(TransactionTestCase):
         self.assertEqual(body['learner_id'], self.learner.pk)
         self.assertEqual(body['owner_id'], self.owner.pk)
         self.assertEqual(body['listing']['id'], self.offer.pk)
-        self.assertEqual(body['status'], ExchangeRequest.Status.PENDING)
+        self.assertEqual(body['status'], Exchange.Status.PENDING)
         self.assertEqual(body['scheduled_at'], scheduled_at.isoformat().replace('+00:00', 'Z'))
 
         accepted = self._transition(body['id'], self.owner_headers, 'ACCEPTED')
         completed = self._transition(body['id'], self.owner_headers, 'COMPLETED')
         self.assertEqual(accepted.status_code, 200)
-        self.assertEqual(accepted.json()['status'], ExchangeRequest.Status.ACCEPTED)
+        self.assertEqual(accepted.json()['status'], Exchange.Status.ACCEPTED)
         self.assertEqual(completed.status_code, 200)
-        self.assertEqual(completed.json()['status'], ExchangeRequest.Status.COMPLETED)
+        self.assertEqual(completed.json()['status'], Exchange.Status.COMPLETED)
 
     def test_participants_can_only_view_and_transition_their_requests(self):
         exchange_id = self._create_exchange()
@@ -132,9 +132,9 @@ class ExchangesApiTests(TransactionTestCase):
         declined = self._transition(owner_exchange_id, self.owner_headers, 'DECLINED')
 
         self.assertEqual(cancelled.status_code, 200)
-        self.assertEqual(cancelled.json()['status'], ExchangeRequest.Status.CANCELLED)
+        self.assertEqual(cancelled.json()['status'], Exchange.Status.CANCELLED)
         self.assertEqual(declined.status_code, 200)
-        self.assertEqual(declined.json()['status'], ExchangeRequest.Status.DECLINED)
+        self.assertEqual(declined.json()['status'], Exchange.Status.DECLINED)
 
     def test_invalid_transitions_and_statuses_are_rejected(self):
         exchange_id = self._create_exchange()
@@ -185,7 +185,7 @@ class ExchangesApiTests(TransactionTestCase):
         self.assertEqual(learn_request.status_code, 422)
         self.assertEqual(inactive_request.status_code, 422)
         self.assertEqual(missing_listing.status_code, 404)
-        self.assertEqual(ExchangeRequest.objects.count(), 0)
+        self.assertEqual(Exchange.objects.count(), 0)
 
     def test_scheduled_time_must_include_a_timezone(self):
         response = self.api_client.post(

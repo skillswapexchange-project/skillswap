@@ -34,6 +34,17 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
 
+class UserProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    first_name: str = Field(default='', max_length=150)
+    last_name: str = Field(default='', max_length=150)
+    profile_image: str = Field(default='', max_length=2048)
+    bio: str = ''
+    location: str = Field(default='', max_length=255)
+    timezone: str = Field(default='', max_length=64)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = 'bearer'

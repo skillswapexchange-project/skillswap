@@ -2,6 +2,12 @@
 
 SkillSwap is a skill-exchange platform built with Python, Django (ORM, Admin, Migrations), and FastAPI (high-performance async API layer).
 
+## Frontend
+
+The React/Vite frontend lives in `frontend/`. From that directory, install dependencies with `npm install`, copy `.env.example` to `.env`, then run `npm run dev`. In development, Vite proxies `/api` requests to the local backend at `http://localhost:8080`, avoiding a backend CORS change. Set `VITE_API_BASE_URL` to the API's `/api/v1` base path or origin plus `/api/v1` to override it. A deployed frontend must use a same-origin API proxy or an API origin configured to allow the frontend's origin. Run `npm run build` to verify a production build.
+
+The shared shell and route setup live in `src/App.jsx` and `src/components/AppLayout.jsx`. Use `src/api/client.js` for requests and `src/auth/AuthContext.jsx` for the shared bearer-token session. Add marketplace and exchange pages in their own page modules, then replace the temporary route components in `src/pages/FeaturePlaceholder.jsx`.
+
 ---
 
 ## Architecture Overview

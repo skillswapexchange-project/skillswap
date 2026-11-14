@@ -2,10 +2,11 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import { AppLayout, PublicLayout } from './components/AppLayout.jsx';
 import { Alert, Button, LoadingState } from './components/UI.jsx';
-import { ExchangesPlaceholder, SkillsPlaceholder } from './pages/FeaturePlaceholder.jsx';
+import { ExchangesPlaceholder } from './pages/FeaturePlaceholder.jsx';
 import { HomePage } from './pages/HomePage.jsx';
 import { LoginPage, RegisterPage } from './pages/AuthPages.jsx';
 import { ProfilePage } from './pages/ProfilePage.jsx';
+import { SkillsPage } from './pages/SkillsPage.jsx';
 
 function SessionGate({ children }) {
   const { isLoading, sessionError, retrySession, logout, user } = useAuth();
@@ -34,7 +35,7 @@ function WorkspaceRoutes() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
-            <Route path="skills" element={<SkillsPlaceholder />} />
+            <Route path="skills" element={<SkillsPage />} />
             <Route path="exchanges" element={<ExchangesPlaceholder />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -44,6 +45,7 @@ function WorkspaceRoutes() {
         <Routes>
           <Route element={<PublicLayout />}>
             <Route index element={<LandingPage />} />
+            <Route path="skills" element={<SkillsPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="*" element={<Navigate to="/login" replace state={{ from: location }} />} />

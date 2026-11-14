@@ -40,7 +40,11 @@ export function AppLayout() {
         <header className="topbar">
           <div className="mobile-brand"><Brand /></div>
           <p className="topbar-context" aria-live="polite">
-            {location.pathname === '/profile' ? 'Your account' : 'A little learning goes a long way'}
+            {location.pathname === '/profile'
+              ? 'Your account'
+              : location.pathname.startsWith('/skills')
+              ? 'Skills marketplace'
+              : 'A little learning goes a long way'}
           </p>
           <div className="topbar-user">
             <NavLink className="user-chip" to="/profile">

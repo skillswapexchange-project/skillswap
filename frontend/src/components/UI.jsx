@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export function Button({ as: Element = 'button', children, className = '', variant = 'primary', ...props }) {
@@ -30,6 +31,105 @@ export function TextField({
           {hint}
         </small>
       )}
+    </div>
+  );
+}
+
+export function SelectField({
+  id,
+  label,
+  hint,
+  children,
+  className = '',
+  ...props
+}) {
+  return (
+    <div className={`field ${className}`.trim()}>
+      <label htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        className="input select-input"
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        {...props}
+      >
+        {children}
+      </select>
+      {hint && (
+        <small className="field-hint" id={`${id}-hint`}>
+          {hint}
+        </small>
+      )}
+    </div>
+  );
+}
+
+export function TextareaField({
+  id,
+  label,
+  hint,
+  className = '',
+  ...props
+}) {
+  return (
+    <div className={`field ${className}`.trim()}>
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        className="input textarea-input"
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        {...props}
+      />
+      {hint && (
+        <small className="field-hint" id={`${id}-hint`}>
+          {hint}
+        </small>
+      )}
+    </div>
+  );
+}
+
+export function Badge({ children, variant = 'neutral', className = '' }) {
+  return (
+    <span className={`badge badge-${variant} ${className}`.trim()}>
+      {children}
+    </span>
+  );
+}
+
+export function Modal({ isOpen, onClose, title, children, className = '' }) {
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        className={`modal-dialog ${className}`.trim()}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <div className="modal-header">
+          <h2 id="modal-title">{title}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            ×
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
+      </div>
     </div>
   );
 }

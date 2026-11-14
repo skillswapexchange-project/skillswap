@@ -1,4 +1,7 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '');
+const API_BASE_URL = (
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
+  '/api/v1'
+).replace(/\/+$/, '');
 
 /**
  * @typedef {Object} User
@@ -131,4 +134,108 @@ export const profileApi = {
     /** @type {Promise<User>} */ (
       apiRequest('/users/me', { method: 'PATCH', token, body: changes })
     ),
+};
+
+/**
+ * @typedef {Object} Skill
+ * @property {number} id
+ * @property {string} name
+ * @property {string} slug
+ * @property {string} category
+ * @property {string} description
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
+/**
+ * @typedef {Object} SkillListing
+ * @property {number} id
+ * @property {number} owner_id
+ * @property {Skill} skill
+ * @property {'OFFER' | 'LEARN'} direction
+ * @property {string} description
+ * @property {boolean} is_active
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
+/**
+ * @typedef {Object} SkillPage
+ * @property {Skill[]} items
+ * @property {number} total
+ * @property {number} limit
+ * @property {number} offset
+ */
+
+/**
+ * @typedef {Object} SkillListingPage
+ * @property {SkillListing[]} items
+ * @property {number} total
+ * @property {number} limit
+ * @property {number} offset
+ */
+
+function buildQueryString(params = {}) {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, String(value));
+    }
+  }
+  const query = searchParams.toString();
+  return query ? `?${query}` : '';
+}
+
+export const skillsApi = {
+  /**
+   * @param {{ query?: string, category?: string, limit?: number, offset?: number }} [params]
+   * @param {{ signal?: AbortSignal }} [options]
+   * @returns {Promise<SkillPage>}
+   */
+  listSkills: (params = {}, options = {}) =>
+    apiRequest(`/skills${buildQueryString(params)}`, { signal: options.signal }),
+
+  /**
+   * @param {{ query?: string, skill_slug?: string, direction?: 'OFFER' | 'LEARN', limit?: number, offset?: number }} [params]
+   * @param {{ signal?: AbortSignal }} [options]
+   * @returns {Promise<SkillListingPage>}
+   */
+  listListings: (params = {}, options = {}) =>
+    apiRequest(`/skills/listings${buildQueryString(params)}`, { signal: options.signal }),
+
+  /**
+   * @param {string} token
+   * @param {{ skill_slug: string, direction: 'OFFER' | 'LEARN', description?: string }} listing
+   * @returns {Promise<SkillListing>}
+   */
+  createListing: (token, listing) =>
+    apiRequest('/skills/listings', {
+      method: 'POST',
+      token,
+      body: listing,
+    }),
+
+  /**
+   * @param {string} token
+   * @param {number} listingId
+   * @param {{ skill_slug?: string, direction?: 'OFFER' | 'LEARN', description?: string, is_active?: boolean }} changes
+   * @returns {Promise<SkillListing>}
+   */
+  updateListing: (token, listingId, changes) =>
+    apiRequest(`/skills/listings/${listingId}`, {
+      method: 'PATCH',
+      token,
+      body: changes,
+    }),
+
+  /**
+   * @param {string} token
+   * @param {number} listingId
+   * @returns {Promise<void>}
+   */
+  deleteListing: (token, listingId) =>
+    apiRequest(`/skills/listings/${listingId}`, {
+      method: 'DELETE',
+      token,
+    }),
 };

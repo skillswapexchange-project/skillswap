@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ApiError, formatApiError, skillsApi } from './client.js';
+import { ApiError, formatApiError, skillsApi, exchangesApi, reviewsApi } from './client.js';
 
 // Setup mock global fetch to verify URL building, headers, and request options
 let lastFetchCall = null;
@@ -161,8 +161,190 @@ async function runTests() {
     }
   );
 
+  console.log('--- Testing exchangesApi.list URL and auth header ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.includes('/exchanges?'));
+    assert.ok(url.includes('limit=15'));
+    assert.ok(url.includes('offset=30'));
+    assert.equal(options.headers.get('Authorization'), 'Bearer test-token');
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ items: [], total: 0, limit: 15, offset: 30 }),
+    };
+  });
+
+  const exchangePage = await exchangesApi.list('test-token', { limit: 15, offset: 30 });
+  assert.equal(exchangePage.limit, 15);
+  assert.equal(exchangePage.offset, 30);
+
+  console.log('--- Testing exchangesApi.create request ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.endsWith('/exchanges'));
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.get('Authorization'), 'Bearer test-token');
+    assert.equal(options.headers.get('Content-Type'), 'application/json');
+    const body = JSON.parse(options.body);
+    assert.equal(body.listing_id, 101);
+    assert.equal(body.scheduled_at, '2026-11-20T14:00:00.000Z');
+    return {
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          id: 7,
+          learner_id: 1,
+          owner_id: 2,
+          listing: null,
+          status: 'PENDING',
+          scheduled_at: '2026-11-20T14:00:00.000Z',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+    };
+  });
+
+  const createdExchange = await exchangesApi.create('test-token', {
+    listing_id: 101,
+    scheduled_at: '2026-11-20T14:00:00.000Z',
+  });
+  assert.equal(createdExchange.id, 7);
+  assert.equal(createdExchange.status, 'PENDING');
+  assert.equal(createdExchange.scheduled_at, '2026-11-20T14:00:00.000Z');
+
+  console.log('--- Testing exchangesApi.updateStatus transition ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.endsWith('/exchanges/7/status'));
+    assert.equal(options.method, 'PATCH');
+    assert.equal(options.headers.get('Authorization'), 'Bearer test-token');
+    const body = JSON.parse(options.body);
+    assert.equal(body.status, 'ACCEPTED');
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          id: 7,
+          learner_id: 1,
+          owner_id: 2,
+          listing: null,
+          status: 'ACCEPTED',
+          scheduled_at: '2026-11-20T14:00:00.000Z',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+    };
+  });
+
+  const updatedExchange = await exchangesApi.updateStatus('test-token', 7, 'ACCEPTED');
+  assert.equal(updatedExchange.status, 'ACCEPTED');
+
+  console.log('--- Testing exchangesApi forbidden transition error (403) ---');
+  mockFetch(async () => ({
+    ok: false,
+    status: 403,
+    text: async () =>
+      JSON.stringify({ detail: 'You are not allowed to perform this transition.' }),
+  }));
+
+  await assert.rejects(
+    async () => {
+      await exchangesApi.updateStatus('test-token', 7, 'ACCEPTED');
+    },
+    (err) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.status, 403);
+      assert.equal(err.message, 'You are not allowed to perform this transition.');
+      return true;
+    }
+  );
+
+  console.log('--- Testing reviewsApi.create review submission ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.endsWith('/reviews'));
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.get('Authorization'), 'Bearer test-token');
+    const body = JSON.parse(options.body);
+    assert.equal(body.exchange_id, 7);
+    assert.equal(body.rating, 5);
+    assert.equal(body.feedback, 'Great exchange session!');
+    assert.equal(body.reviewee_id, 2);
+    return {
+      ok: true,
+      status: 201,
+      text: async () =>
+        JSON.stringify({
+          id: 99,
+          exchange_id: 7,
+          reviewer_id: 1,
+          reviewee_id: 2,
+          reviewer: { id: 1, first_name: 'Alex', last_name: 'Learner', profile_image: '' },
+          reviewee: { id: 2, first_name: 'Sam', last_name: 'Teacher', profile_image: '' },
+          rating: 5,
+          feedback: 'Great exchange session!',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+    };
+  });
+
+  const createdReview = await reviewsApi.create('test-token', {
+    exchange_id: 7,
+    rating: 5,
+    feedback: 'Great exchange session!',
+    reviewee_id: 2,
+  });
+  assert.equal(createdReview.id, 99);
+  assert.equal(createdReview.rating, 5);
+  assert.equal(createdReview.feedback, 'Great exchange session!');
+
+  console.log('--- Testing reviewsApi.list by exchange_id ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.includes('/reviews?'));
+    assert.ok(url.includes('exchange_id=7'));
+    assert.equal(options.headers.get('Authorization'), 'Bearer test-token');
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          items: [createdReview],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        }),
+    };
+  });
+
+  const reviewsList = await reviewsApi.list('test-token', { exchange_id: 7 });
+  assert.equal(reviewsList.total, 1);
+  assert.equal(reviewsList.items[0].id, 99);
+
+  console.log('--- Testing reviewsApi duplicate review conflict (409) ---');
+  mockFetch(async () => ({
+    ok: false,
+    status: 409,
+    text: async () =>
+      JSON.stringify({ detail: 'You have already submitted a review for this exchange.' }),
+  }));
+
+  await assert.rejects(
+    async () => {
+      await reviewsApi.create('test-token', {
+        exchange_id: 7,
+        rating: 4,
+      });
+    },
+    (err) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.status, 409);
+      assert.equal(err.message, 'You have already submitted a review for this exchange.');
+      return true;
+    }
+  );
+
   restoreFetch();
-  console.log('✓ All skillsApi tests passed successfully!');
+  console.log('✓ All skillsApi, exchangesApi, and reviewsApi tests passed successfully!');
 }
 
 runTests().catch((err) => {

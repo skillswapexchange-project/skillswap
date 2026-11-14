@@ -239,3 +239,140 @@ export const skillsApi = {
       token,
     }),
 };
+
+/**
+ * @typedef {'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'COMPLETED'} ExchangeStatus
+ */
+
+/**
+ * @typedef {Object} Exchange
+ * @property {number} id
+ * @property {number} learner_id
+ * @property {number} owner_id
+ * @property {SkillListing | null} listing
+ * @property {ExchangeStatus} status
+ * @property {string | null} scheduled_at
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
+/**
+ * @typedef {Object} ExchangePage
+ * @property {Exchange[]} items
+ * @property {number} total
+ * @property {number} limit
+ * @property {number} offset
+ */
+
+export const exchangesApi = {
+  /**
+   * List exchange requests for current user
+   * @param {string} token
+   * @param {{ limit?: number, offset?: number }} [params]
+   * @param {{ signal?: AbortSignal }} [options]
+   * @returns {Promise<ExchangePage>}
+   */
+  list: (token, params = {}, options = {}) =>
+    apiRequest(`/exchanges${buildQueryString(params)}`, {
+      token,
+      signal: options.signal,
+    }),
+
+  /**
+   * Request an exchange on an offered skill listing
+   * @param {string} token
+   * @param {{ listing_id: number, scheduled_at?: string | null }} request
+   * @returns {Promise<Exchange>}
+   */
+  create: (token, request) =>
+    apiRequest('/exchanges', {
+      method: 'POST',
+      token,
+      body: request,
+    }),
+
+  /**
+   * Transition an exchange request status
+   * @param {string} token
+   * @param {number} exchangeId
+   * @param {ExchangeStatus} status
+   * @returns {Promise<Exchange>}
+   */
+  updateStatus: (token, exchangeId, status) =>
+    apiRequest(`/exchanges/${exchangeId}/status`, {
+      method: 'PATCH',
+      token,
+      body: { status },
+    }),
+};
+
+/**
+ * @typedef {Object} ReviewUserSummary
+ * @property {number} id
+ * @property {string} first_name
+ * @property {string} last_name
+ * @property {string} profile_image
+ */
+
+/**
+ * @typedef {Object} Review
+ * @property {number} id
+ * @property {number} exchange_id
+ * @property {number} reviewer_id
+ * @property {number} reviewee_id
+ * @property {ReviewUserSummary} reviewer
+ * @property {ReviewUserSummary} reviewee
+ * @property {number} rating
+ * @property {string} feedback
+ * @property {string} created_at
+ * @property {string} updated_at
+ */
+
+/**
+ * @typedef {Object} ReviewPage
+ * @property {Review[]} items
+ * @property {number} total
+ * @property {number} limit
+ * @property {number} offset
+ */
+
+export const reviewsApi = {
+  /**
+   * Submit a review for a completed exchange
+   * @param {string} token
+   * @param {{ exchange_id: number, rating: number, feedback?: string, reviewee_id?: number | null }} review
+   * @returns {Promise<Review>}
+   */
+  create: (token, review) =>
+    apiRequest('/reviews', {
+      method: 'POST',
+      token,
+      body: review,
+    }),
+
+  /**
+   * List reviews with optional filters
+   * @param {string} token
+   * @param {{ user_id?: number, reviewee_id?: number, reviewer_id?: number, exchange_id?: number, rating?: number, min_rating?: number, limit?: number, offset?: number }} [params]
+   * @param {{ signal?: AbortSignal }} [options]
+   * @returns {Promise<ReviewPage>}
+   */
+  list: (token, params = {}, options = {}) =>
+    apiRequest(`/reviews${buildQueryString(params)}`, {
+      token,
+      signal: options.signal,
+    }),
+
+  /**
+   * Get a single review by ID
+   * @param {string} token
+   * @param {number} reviewId
+   * @param {{ signal?: AbortSignal }} [options]
+   * @returns {Promise<Review>}
+   */
+  get: (token, reviewId, options = {}) =>
+    apiRequest(`/reviews/${reviewId}`, {
+      token,
+      signal: options.signal,
+    }),
+};

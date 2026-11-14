@@ -2,7 +2,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import { AppLayout, PublicLayout } from './components/AppLayout.jsx';
 import { Alert, Button, LoadingState } from './components/UI.jsx';
-import { ExchangesPlaceholder } from './pages/FeaturePlaceholder.jsx';
+import { ExchangesPage } from './pages/ExchangesPage.jsx';
 import { HomePage } from './pages/HomePage.jsx';
 import { LoginPage, RegisterPage } from './pages/AuthPages.jsx';
 import { ProfilePage } from './pages/ProfilePage.jsx';
@@ -36,7 +36,7 @@ function WorkspaceRoutes() {
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
             <Route path="skills" element={<SkillsPage />} />
-            <Route path="exchanges" element={<ExchangesPlaceholder />} />
+            <Route path="exchanges" element={<ExchangesPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

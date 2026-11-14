@@ -18,6 +18,7 @@ import {
   ListingFormModal,
   PaginationControl,
 } from '../components/ListingComponents.jsx';
+import { ExchangeRequestModal } from '../components/ExchangeComponents.jsx';
 
 export function SkillsPage() {
   const { user, token } = useAuth();
@@ -485,7 +486,13 @@ export function SkillsPage() {
                       setModalApiError('');
                       setDeletingListing(l);
                     }}
-                    onRequestExchange={(l) => setSelectedExchangeListing(l)}
+                    onRequestExchange={(l) => {
+                      if (!user) {
+                        navigate('/login', { state: { from: { pathname: '/skills' } } });
+                      } else {
+                        setSelectedExchangeListing(l);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -639,35 +646,17 @@ export function SkillsPage() {
         apiError={modalApiError}
       />
 
-      {/* EXCHANGE REQUEST PLACEHOLDER MODAL */}
-      <Modal
+      {/* EXCHANGE REQUEST MODAL */}
+      <ExchangeRequestModal
         isOpen={Boolean(selectedExchangeListing)}
         onClose={() => setSelectedExchangeListing(null)}
-        title="Exchange Request"
-      >
-        <p>
-          You are interested in connecting with <strong>Member #{selectedExchangeListing?.owner_id}</strong> for{' '}
-          <strong>{selectedExchangeListing?.skill?.name}</strong> (
-          {selectedExchangeListing?.direction === 'OFFER' ? 'Teaching' : 'Learning'}).
-        </p>
-        <p className="field-hint">
-          Exchange requests integrate with the <code>/api/v1/exchanges</code> lifecycle. Visit the My Exchanges tab to track requests.
-        </p>
-        <div className="modal-actions">
-          <Button variant="secondary" onClick={() => setSelectedExchangeListing(null)}>
-            Close
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setSelectedExchangeListing(null);
-              navigate('/exchanges');
-            }}
-          >
-            Go to Exchanges →
-          </Button>
-        </div>
-      </Modal>
+        listing={selectedExchangeListing}
+        token={token}
+        currentUserId={user?.id}
+        onSuccess={(createdExchange) => {
+          setNotice(`Exchange request #${createdExchange.id} sent successfully! You can track it in My Exchanges.`);
+        }}
+      />
     </div>
   );
 }

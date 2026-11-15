@@ -92,6 +92,90 @@ class AuthenticationApiTests(TransactionTestCase):
         self.assertEqual(response.status_code, 422)
         self.assertFalse(User.objects.filter(email='weak-password@example.com').exists())
 
+    @patch('services.auth.verify_oauth2_token')
+    def test_google_login_creates_user_from_verified_google_identity(self, verify_token):
+        verify_token.return_value = {
+            'email': 'Google.User@example.com',
+            'email_verified': True,
+            'given_name': 'Google',
+            'family_name': 'User',
+        }
+        with patch.object(settings, 'GOOGLE_CLIENT_ID', 'google-web-client-id'):
+            response = self.api_client.post(
+                '/api/v1/auth/google',
+                json={'credential': 'valid-google-id-token'},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['user']['email'], 'google.user@example.com')
+        self.assertEqual(body['user']['first_name'], 'Google')
+        self.assertEqual(body['user']['last_name'], 'User')
+        self.assertNotIn('password', body['user'])
+        user = User.objects.get(email='google.user@example.com')
+        self.assertFalse(user.has_usable_password())
+        verify_token.assert_called_once()
+
+        current_user = self.api_client.get(
+            '/api/v1/auth/me',
+            headers={'Authorization': f"Bearer {body['access_token']}"},
+        )
+        self.assertEqual(current_user.status_code, 200)
+        self.assertEqual(current_user.json()['email'], 'google.user@example.com')
+
+    @patch('services.auth.verify_oauth2_token')
+    def test_google_login_uses_existing_account_with_verified_matching_email(self, verify_token):
+        user = User.objects.create_user(
+            username='existing@example.com',
+            email='existing@example.com',
+            password='A-strong-password-42!',
+        )
+        verify_token.return_value = {
+            'email': 'EXISTING@example.com',
+            'email_verified': True,
+        }
+        with patch.object(settings, 'GOOGLE_CLIENT_ID', 'google-web-client-id'):
+            response = self.api_client.post(
+                '/api/v1/auth/google',
+                json={'credential': 'valid-google-id-token'},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['user']['id'], user.pk)
+        self.assertEqual(User.objects.filter(email__iexact='existing@example.com').count(), 1)
+
+    @patch('services.auth.verify_oauth2_token')
+    def test_google_login_rejects_unverified_emails_and_invalid_credentials(self, verify_token):
+        with patch.object(settings, 'GOOGLE_CLIENT_ID', 'google-web-client-id'):
+            verify_token.return_value = {
+                'email': 'unverified@example.com',
+                'email_verified': False,
+            }
+            unverified = self.api_client.post(
+                '/api/v1/auth/google',
+                json={'credential': 'valid-google-id-token'},
+            )
+            verify_token.side_effect = ValueError('invalid token')
+            invalid = self.api_client.post(
+                '/api/v1/auth/google',
+                json={'credential': 'invalid-google-id-token'},
+            )
+
+        self.assertEqual(unverified.status_code, 401)
+        self.assertEqual(invalid.status_code, 401)
+        self.assertFalse(User.objects.filter(email='unverified@example.com').exists())
+
+    @patch('services.auth.verify_oauth2_token')
+    def test_google_login_requires_client_id_configuration(self, verify_token):
+        with patch.object(settings, 'GOOGLE_CLIENT_ID', ''):
+            response = self.api_client.post(
+                '/api/v1/auth/google',
+                json={'credential': 'valid-google-id-token'},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        verify_token.assert_not_called()
+
     def test_invalid_login_and_missing_token_are_rejected(self):
         User.objects.create_user(
             username='known@example.com',

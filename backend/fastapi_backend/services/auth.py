@@ -6,6 +6,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from fastapi import HTTPException, status
+from google.auth.exceptions import GoogleAuthError
+from google.auth.transport.requests import Request
+from google.oauth2.id_token import verify_oauth2_token
 
 from users.models import User
 
@@ -59,6 +62,70 @@ def authenticate_user(*, email: str, password: str) -> User:
             headers={'WWW-Authenticate': 'Bearer'},
         )
     return user
+
+
+def authenticate_google_user(*, credential: str) -> User:
+    client_id = settings.GOOGLE_CLIENT_ID
+    if not client_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail='Google sign-in is not configured.',
+        )
+
+    try:
+        claims = verify_oauth2_token(credential, Request(), audience=client_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Invalid Google credential.',
+        ) from exc
+    except GoogleAuthError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail='Google sign-in could not be verified right now.',
+        ) from exc
+
+    email = claims.get('email')
+    if claims.get('email_verified') is not True or not isinstance(email, str):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Google did not provide a verified email address.',
+        )
+
+    normalized_email = email.strip().casefold()
+    user = User.objects.filter(email__iexact=normalized_email).first()
+    if user is not None:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='This account is inactive.',
+            )
+        return user
+
+    first_name = claims.get('given_name')
+    last_name = claims.get('family_name')
+    first_name = first_name.strip()[:150] if isinstance(first_name, str) else ''
+    last_name = last_name.strip()[:150] if isinstance(last_name, str) else ''
+
+    try:
+        with transaction.atomic():
+            return User.objects.create_user(
+                email=normalized_email,
+                password=None,
+                first_name=first_name,
+                last_name=last_name,
+                role=User.Role.USER,
+            )
+    except IntegrityError:
+        user = User.objects.filter(email__iexact=normalized_email).first()
+        if user is None:
+            raise
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='This account is inactive.',
+            )
+        return user
 
 
 def create_access_token(user: User) -> str:

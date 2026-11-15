@@ -89,6 +89,7 @@ export function formatApiError(detail) {
   if (Array.isArray(detail)) {
     return detail
       .map((item) => {
+        if (typeof item === 'string') return item;
         const location = Array.isArray(item?.loc) ? item.loc.slice(1).join(' → ') : '';
         const message = item?.msg || 'Invalid value';
         return location ? `${location}: ${message}` : message;
@@ -112,6 +113,12 @@ export const authApi = {
   register: (details) =>
     /** @type {Promise<TokenResponse>} */ (
       apiRequest('/auth/register', { method: 'POST', body: details })
+    ),
+
+  /** @param {string} credential Google ID token */
+  googleLogin: (credential) =>
+    /** @type {Promise<TokenResponse>} */ (
+      apiRequest('/auth/google', { method: 'POST', body: { credential } })
     ),
 
   /** @param {string} token */

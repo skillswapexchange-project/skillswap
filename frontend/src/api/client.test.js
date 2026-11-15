@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ApiError, formatApiError, skillsApi, exchangesApi, reviewsApi } from './client.js';
+import { ApiError, authApi, formatApiError, skillsApi, exchangesApi, reviewsApi } from './client.js';
 
 // Setup mock global fetch to verify URL building, headers, and request options
 let lastFetchCall = null;
@@ -21,6 +21,10 @@ async function runTests() {
   console.log('--- Testing formatApiError ---');
   assert.equal(formatApiError('Simple string error'), 'Simple string error');
   assert.equal(
+    formatApiError(['The password is too similar to the first name.']),
+    'The password is too similar to the first name.'
+  );
+  assert.equal(
     formatApiError([{ loc: ['body', 'skill_slug'], msg: 'Field required' }]),
     'skill_slug: Field required'
   );
@@ -28,6 +32,25 @@ async function runTests() {
     formatApiError({ message: 'Object error message' }),
     'Object error message'
   );
+
+  console.log('--- Testing authApi.googleLogin ---');
+  mockFetch(async (url, options) => {
+    assert.ok(url.endsWith('/auth/google'));
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.get('Content-Type'), 'application/json');
+    assert.deepEqual(JSON.parse(options.body), { credential: 'google-id-token' });
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        access_token: 'api-access-token',
+        token_type: 'bearer',
+        user: { id: 1, email: 'google@example.com' },
+      }),
+    };
+  });
+  const googleSession = await authApi.googleLogin('google-id-token');
+  assert.equal(googleSession.user.email, 'google@example.com');
 
   console.log('--- Testing skillsApi.listSkills URL construction ---');
   mockFetch(async () => ({

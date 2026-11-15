@@ -1,7 +1,140 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { Alert, Button, TextField } from '../components/UI.jsx';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
+const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
+
+function GoogleSignInButton({ onCredential, disabled }) {
+  const buttonContainer = useRef(null);
+  const callbacks = useRef({ onCredential, disabled });
+  const [scriptError, setScriptError] = useState('');
+  callbacks.current = { onCredential, disabled };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return undefined;
+
+    let active = true;
+    let script = document.querySelector(`script[src="${GOOGLE_IDENTITY_SCRIPT}"]`);
+    const showLoadError = () => {
+      if (active) setScriptError('Google sign-in could not be loaded. Please try again later.');
+    };
+    const renderGoogleButton = () => {
+      if (!active || !window.google?.accounts?.id || !buttonContainer.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          if (callbacks.current.disabled) return;
+          if (!response.credential) {
+            setScriptError('Google sign-in did not return a credential. Please try again.');
+            return;
+          }
+          callbacks.current.onCredential(response.credential);
+        },
+        auto_select: false,
+      });
+      window.google.accounts.id.renderButton(buttonContainer.current, {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: Math.min(buttonContainer.current.clientWidth, 360),
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+    } else if (script) {
+      script.addEventListener('load', renderGoogleButton, { once: true });
+      script.addEventListener('error', showLoadError, { once: true });
+    } else {
+      script = document.createElement('script');
+      script.src = GOOGLE_IDENTITY_SCRIPT;
+      script.async = true;
+      script.defer = true;
+      script.addEventListener('load', renderGoogleButton, { once: true });
+      script.addEventListener('error', showLoadError, { once: true });
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      active = false;
+      script?.removeEventListener('load', renderGoogleButton);
+      script?.removeEventListener('error', showLoadError);
+      buttonContainer.current?.replaceChildren();
+    };
+  }, []);
+
+  return (
+    <div className="google-signin">
+      <div className="auth-divider"><span>or</span></div>
+      {GOOGLE_CLIENT_ID ? (
+        <div
+          ref={buttonContainer}
+          className={`google-signin-button${disabled ? ' is-disabled' : ''}`}
+          aria-disabled={disabled}
+        />
+      ) : (
+        <button className="google-signin-placeholder" type="button" disabled>
+          <span aria-hidden="true">G</span>
+          Continue with Google
+        </button>
+      )}
+      {!GOOGLE_CLIENT_ID && (
+        <small className="field-hint">
+          Add GOOGLE_CLIENT_ID to the repository-root .env to enable Google sign-in.
+        </small>
+      )}
+      {scriptError && <p className="alert alert-error" role="alert">{scriptError}</p>}
+    </div>
+  );
+}
+
+function PasswordField({ id, label, hint, ...inputProps }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <div className="password-input-wrap">
+        <input
+          id={id}
+          className="input password-input"
+          type={isVisible ? 'text' : 'password'}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          {...inputProps}
+        />
+        <button
+          className="password-toggle"
+          type="button"
+          aria-label={isVisible ? 'Hide password' : 'Show password'}
+          aria-pressed={isVisible}
+          aria-controls={id}
+          onClick={() => setIsVisible((visible) => !visible)}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+            {isVisible ? (
+              <path d="m3 3 18 18" />
+            ) : (
+              <circle cx="12" cy="12" r="3" />
+            )}
+          </svg>
+        </button>
+      </div>
+      {hint && <small className="field-hint" id={`${id}-hint`}>{hint}</small>}
+    </div>
+  );
+}
 
 function AuthFrame({ eyebrow, title, description, children, footer }) {
   return (
@@ -16,7 +149,7 @@ function AuthFrame({ eyebrow, title, description, children, footer }) {
 }
 
 export function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -40,6 +173,19 @@ export function LoginPage() {
     }
   }
 
+  async function handleGoogleCredential(credential) {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await googleLogin(credential);
+      navigate(location.state?.from?.pathname || '/', { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || 'We could not sign you in with Google. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <AuthFrame
       eyebrow="Welcome back"
@@ -58,10 +204,9 @@ export function LoginPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
-        <TextField
+        <PasswordField
           id="password"
           label="Password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}
@@ -70,13 +215,14 @@ export function LoginPage() {
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
+        <GoogleSignInButton onCredential={handleGoogleCredential} disabled={isSubmitting} />
       </form>
     </AuthFrame>
   );
 }
 
 export function RegisterPage() {
-  const { user, register } = useAuth();
+  const { user, register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     first_name: '',
@@ -102,6 +248,19 @@ export function RegisterPage() {
       navigate('/', { replace: true });
     } catch (requestError) {
       setError(requestError.message || 'We could not create your account. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(credential) {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await googleLogin(credential);
+      navigate('/', { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || 'We could not create your account with Google. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -148,15 +307,14 @@ export function RegisterPage() {
           value={form.email}
           onChange={updateField}
         />
-        <TextField
+        <PasswordField
           id="register-password"
           name="password"
           label="Password"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           maxLength={128}
-          hint="Use at least 8 characters."
+          hint="Use 8+ characters; avoid common passwords, names, and all-numeric passwords."
           required
           value={form.password}
           onChange={updateField}
@@ -164,6 +322,7 @@ export function RegisterPage() {
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
+        <GoogleSignInButton onCredential={handleGoogleCredential} disabled={isSubmitting} />
       </form>
     </AuthFrame>
   );

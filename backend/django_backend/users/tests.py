@@ -1,5 +1,5 @@
 from django.db import IntegrityError, connection, transaction
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from config.database import get_db
 from .models import User
@@ -37,6 +37,8 @@ class UserModelTests(TestCase):
                     password='password-two',
                 )
 
+
+class DatabaseDependencyTests(TransactionTestCase):
     def test_database_dependency_yields_a_connected_connection(self):
         dependency = get_db()
         provided_connection = next(dependency)

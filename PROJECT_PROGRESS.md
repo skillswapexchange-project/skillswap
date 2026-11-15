@@ -1,69 +1,56 @@
 # SkillSwap Project Progress
 
-**Status checked:** 2026-11-09
-**Overall assessment:** The core backend API journey is implemented and locally tested. The repository does not yet contain a complete user-facing product or production deployment.
-
-## Project scope
-
-SkillSwap is intended to let people offer skills, find opportunities to learn, arrange exchanges, complete them, and review one another. The current repository contains the Python backend, documentation, and backend CI only; there is no frontend application.
+**Status checked:** 2026-11-15
+**Overall assessment:** The backend and primary frontend journeys are implemented and covered by automated tests. The project is not deployed; production infrastructure and several optional product capabilities still need decisions and configuration.
 
 ## Implemented
 
-### Backend foundation
+### Backend and data
 
-- Django owns configuration, the custom user model, skills, exchanges, and reviews; it also owns the ORM, admin, and database migrations.
-- FastAPI serves the HTTP API and shares Django's ORM/database configuration. The v1 router registers authentication, profiles, skills, exchanges, and reviews.
-- SQLite is the local default; environment settings support PostgreSQL via database parameters or `DATABASE_URL`.
-- A database health endpoint and database-verification utility are present.
-- Django admin is configured for the project models.
+- Django owns settings, users, skills, exchanges, reviews, the ORM, admin, and migrations. FastAPI exposes the versioned API using the shared Django database configuration.
+- SQLite is supported for local development and tests. PostgreSQL configuration is supported through environment variables or `DATABASE_URL`.
+- Authentication supports email/password registration and login with signed bearer tokens. Authenticated profile updates are restricted to approved profile fields.
+- Skills support a searchable catalog and user-owned `OFFER`/`LEARN` listings with create, update, and delete operations.
+- Exchanges support requests and participant-authorized status transitions through pending, accepted, declined, cancelled, and completed states.
+- Participants in completed exchanges can submit one 1–5-star review for the other participant.
 
-### User accounts and profiles
+### Frontend
 
-- Registration and login issue signed bearer access tokens. Protected endpoints use shared authentication and role dependencies.
-- Users can read their authenticated profile and update only first name, last name, profile image, bio, location, and timezone.
-- Profile API tests verify authentication, field validation, and rejection of email, role, account-status, and credential changes.
+- React/Vite routes cover registration, sign-in, the workspace, profiles, skill discovery and listing management, exchanges, and reviews.
+- The frontend API client uses the Vite `/api` development proxy and supports authenticated requests, pagination, and API error formatting.
+- Password visibility controls are available on the email/password forms.
+- Password-policy messages returned as strings from the API are displayed instead of the generic “Invalid value” message.
+- Google sign-in exchanges a Google Identity Services ID token for a SkillSwap bearer token. The API verifies the token audience/signature and requires a verified email; new users are created and existing verified-email accounts are reused.
 
-### Skills and exchanges
+### CI and validation
 
-- The skill catalog supports categories, descriptions, generated slugs, case-insensitive uniqueness, search, and pagination.
-- Users can create, update, and delete their own active `OFFER` or `LEARN` listings. Public listing search and relevant ownership/duplicate checks are implemented.
-- Authenticated users can request an active offer, list exchanges in which they participate, and transition requests according to participant permissions.
-- Exchange requests use the same `Exchange` model used by reviews. The current API supports request, accept, decline, cancel, and complete lifecycle states.
-- An exchange may have an optional scheduled timestamp. Availability management, calendar integration, and multi-session scheduling are not implemented.
-
-### Reviews and tested journey
-
-- Participants can submit one 1–5-star review for the other participant after an exchange is completed.
-- Validation and database constraints cover ratings, participant eligibility, self-reviews, and duplicate reviews. Review APIs support retrieval and filtering.
-- An API integration test covers catalog lookup, offering creation and discovery, exchange request and completion, review submission, and profile update/read-back.
-
-### CI and documentation
-
-- The backend workflow runs on pushes and pull requests using SQLite. It installs dependencies, runs Django system checks, checks migration consistency, and runs backend tests.
-- Root and backend documentation describe local setup, API entry points, database configuration, and production prerequisites.
+- GitHub Actions runs backend checks and tests against SQLite and PostgreSQL, plus frontend API-client tests and a production build.
+- The backend integration suite covers the main catalog-to-exchange-to-review journey.
 
 ## Remaining work / boundaries
 
-- **Frontend:** No user interface or frontend-to-API integration exists in this repository.
-- **Production operations:** No deployment configuration or provider is selected. Although the docs describe Supabase PostgreSQL setup, no live database connection, production migration, or deployed service was verified. Production still requires real secret management, database provisioning, HTTPS/TLS, backups, allowed-host configuration, and operational monitoring.
-- **Product capabilities:** User-to-user discovery beyond skill listings, availability/calendar-based scheduling, and richer exchange coordination are not present.
-- **Explicitly out of scope so far:** Email verification, password recovery, messaging/chat, and notifications.
-- **Additional CI coverage:** The workflow tests SQLite on Python 3.13; there is no PostgreSQL CI job, lint/type-check job, or frontend/browser test suite.
+- **Google sign-in:** The local `GOOGLE_CLIENT_ID` is configured and the button is active on both authentication pages. Google currently rejects both `http://127.0.0.1:5173` and `http://localhost:5173` as unauthorized origins; register both on the matching Web application OAuth client. Database connectivity must also be restored before the API can find or create an account. The client secret is not used by this ID-token flow.
+- **Production deployment:** No hosting provider or deployment target is selected. Production still requires verified credentials, a persistent database, TLS, backups, allowed-host configuration, secret management, and operational monitoring. No production migration or deployment has been run.
+- **Scheduling and discovery:** Exchange requests can store a scheduled timestamp, but availability management, calendar integration, multi-session scheduling, and discovery beyond skill listings are not implemented.
+- **Optional account/product features:** Email verification, password recovery, messaging/chat, and notifications remain unimplemented.
 
-## Repository / delivery state
+## Repository state
 
-- The current integration work is on the `backend-integration` branch, tracking `origin/backend-integration`.
-- The prior status check did not confirm a pull request or merge for this branch. Existing merged work was recorded for PRs [#3](https://github.com/skillswapexchange-project/skillswap/pull/3), [#4](https://github.com/skillswapexchange-project/skillswap/pull/4), [#5](https://github.com/skillswapexchange-project/skillswap/pull/5), [#7](https://github.com/skillswapexchange-project/skillswap/pull/7), and [#8](https://github.com/skillswapexchange-project/skillswap/pull/8).
+- The local `feature/frontend-foundation` branch was fast-forwarded to `origin/main` at `bfbf634`, which includes the merged skill marketplace and exchange/review frontend work.
+- Local uncommitted changes preserve the password-visibility and password-validation-message fixes.
+- No production credentials were inspected or changed as part of this update.
 
-## Validation evidence
+## Validation
 
-On 2026-11-09, the backend suite passed **51 tests** using an in-memory SQLite test database. `manage.py check` reported no issues, `makemigrations --check --dry-run` reported no changes, and `git diff --check` passed. This validates the local backend implementation; it does not verify a hosted PostgreSQL instance or deployed environment.
+On 2026-11-15:
 
-Run the same backend checks with the commands in [backend/README.md](./backend/README.md).
+- Frontend API-client tests passed.
+- The frontend production build passed.
+- All 55 backend tests passed using the in-memory SQLite test database, including mocked Google-token verification cases.
+- Django system checks passed.
+- Migration consistency reported no model changes using an isolated SQLite database. No migration was applied to the configured external database.
+- With the user's `GOOGLE_CLIENT_ID` configured, the API rejected an invalid test token with HTTP 401 instead of the unconfigured HTTP 503.
+- Login and registration both render the active Google Identity Services button. A build check confirmed a server-side client-secret canary is absent from browser assets.
+- The Git-ignored local `.env` was updated with the provided database settings, but a read-only connectivity check still fails with `OperationalError` due to database authentication; Django Admin could not start. No writes or migrations were performed.
 
-## Suggested next steps
-
-1. Review and merge the `backend-integration` branch through a pull request.
-2. Decide and implement the frontend scope and connect it to the documented API.
-3. Before launch, configure and verify the chosen production database and deployment environment; apply migrations and establish secret, TLS, backup, monitoring, and allowed-host practices.
-4. Prioritize any additional product flows (such as discovery or scheduling) separately. Do not treat email verification, password recovery, messaging, or notifications as implemented.
+Before deploying, configure a real target database and verify it explicitly. Do not treat local checks as evidence of a production deployment.

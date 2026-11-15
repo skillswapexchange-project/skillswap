@@ -7,3 +7,4 @@ psycopg[binary]>=3.2,<4
 PyJWT>=2.10,<3
 email-validator>=2,<3
 httpx2>=2,<3
+google-auth[requests]>=2.30,<3

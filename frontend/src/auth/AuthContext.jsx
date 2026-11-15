@@ -67,6 +67,11 @@ export function AuthProvider({ children }) {
     [saveSession],
   );
 
+  const googleLogin = useCallback(
+    async (credential) => saveSession(await authApi.googleLogin(credential)),
+    [saveSession],
+  );
+
   const logout = useCallback(() => {
     window.localStorage.removeItem(TOKEN_KEY);
     setToken(null);
@@ -85,6 +90,7 @@ export function AuthProvider({ children }) {
       sessionError,
       login,
       register,
+      googleLogin,
       logout,
       updateUser,
       retrySession,
@@ -96,6 +102,7 @@ export function AuthProvider({ children }) {
       sessionError,
       login,
       register,
+      googleLogin,
       logout,
       updateUser,
       retrySession,

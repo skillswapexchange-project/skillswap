@@ -601,6 +601,63 @@ textarea:focus-visible {
   gap: 18px;
 }
 
+.google-signin {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.auth-divider {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+  content: '';
+}
+
+.google-signin-button {
+  width: 100%;
+}
+
+.google-signin-button.is-disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.google-signin-placeholder {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.google-signin-placeholder > span {
+  color: #4285f4;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.google-signin-placeholder:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -629,6 +686,47 @@ textarea:focus-visible {
   color: var(--ink);
   font-size: 0.91rem;
   transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 50px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.password-toggle:focus-visible {
+  outline: 3px solid rgba(47, 93, 71, 0.26);
+  outline-offset: 1px;
+}
+
+.password-toggle svg {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .input:hover {

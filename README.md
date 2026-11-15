@@ -4,9 +4,13 @@ SkillSwap is a skill-exchange platform built with Python, Django (ORM, Admin, Mi
 
 ## Frontend
 
-The React/Vite frontend lives in `frontend/`. From that directory, install dependencies with `npm install`, copy `.env.example` to `.env`, then run `npm run dev`. In development, Vite proxies `/api` requests to the local backend at `http://localhost:8080`, avoiding a backend CORS change. Set `VITE_API_BASE_URL` to the API's `/api/v1` base path or origin plus `/api/v1` to override it. A deployed frontend must use a same-origin API proxy or an API origin configured to allow the frontend's origin. Run `npm run build` to verify a production build.
+The React/Vite frontend lives in `frontend/`. From that directory, install dependencies with `npm install`, configure the frontend values in the repository-root `.env` (see `.env.example`), then run `npm run dev`. In development, Vite proxies `/api` requests to the local backend at `http://localhost:8080`, avoiding a backend CORS change. Set `VITE_API_BASE_URL` to the API's `/api/v1` base path or origin plus `/api/v1` to override it. A deployed frontend must use a same-origin API proxy or an API origin configured to allow the frontend's origin. Run `npm run build` to verify a production build.
 
-The shared shell and route setup live in `src/App.jsx` and `src/components/AppLayout.jsx`. Use `src/api/client.js` for requests and `src/auth/AuthContext.jsx` for the shared bearer-token session. Add marketplace and exchange pages in their own page modules, then replace the temporary route components in `src/pages/FeaturePlaceholder.jsx`.
+Google sign-in uses the public Google OAuth web client ID in `GOOGLE_CLIENT_ID` (or `VITE_GOOGLE_CLIENT_ID`) in the repository-root `.env`. Vite exposes only this client ID to the browser; `GOOGLE_CLIENT_SECRET` is not used for this ID-token flow and must never be exposed with a `VITE_` variable. Add `http://localhost:5173` and `http://127.0.0.1:5173` as authorized JavaScript origins in Google Cloud.
+
+The frontend includes account registration and sign-in, profile editing, a searchable skill marketplace with listing management, exchange lifecycle management, and reviews after completed exchanges. API calls are centralized in `src/api/client.js`, and `src/auth/AuthContext.jsx` manages the bearer-token session.
+
+Run the frontend checks from the repository root with `npm --prefix frontend test` and `npm --prefix frontend run build`.
 
 ---
 

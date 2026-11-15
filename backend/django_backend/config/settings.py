@@ -140,6 +140,9 @@ AUTH_USER_MODEL = 'users.User'
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', '30'))
 if ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
     raise ValueError('ACCESS_TOKEN_EXPIRE_MINUTES must be a positive integer.')
+GOOGLE_CLIENT_ID = (
+    os.environ.get('GOOGLE_CLIENT_ID') or os.environ.get('VITE_GOOGLE_CLIENT_ID', '')
+).strip()
 
 
 # Password validation

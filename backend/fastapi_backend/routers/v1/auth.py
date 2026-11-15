@@ -5,8 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from users.models import User
-from schemas.v1.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from schemas.v1.auth import (
+    GoogleLoginRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 from services.auth import (
+    authenticate_google_user,
     authenticate_user,
     create_access_token,
     decode_access_token,
@@ -75,6 +82,15 @@ def register(request: RegisterRequest) -> TokenResponse:
 @router.post('/login', response_model=TokenResponse)
 def login(request: LoginRequest) -> TokenResponse:
     user = authenticate_user(email=str(request.email), password=request.password)
+    return TokenResponse(
+        access_token=create_access_token(user),
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post('/google', response_model=TokenResponse)
+def google_login(request: GoogleLoginRequest) -> TokenResponse:
+    user = authenticate_google_user(credential=request.credential)
     return TokenResponse(
         access_token=create_access_token(user),
         user=UserResponse.model_validate(user),

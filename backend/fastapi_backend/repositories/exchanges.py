@@ -48,7 +48,7 @@ def list_exchange_requests_for_user(
 def get_exchange_request_for_update(*, exchange_id: int) -> Exchange | None:
     return (
         Exchange.objects
-        .select_for_update()
+        .select_for_update(of=('self',))
         .select_related('initiator', 'receiver', 'listing__owner', 'listing__skill')
         .filter(pk=exchange_id)
         .first()
